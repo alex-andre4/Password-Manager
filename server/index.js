@@ -46,7 +46,6 @@ app.get('/getpasswords', (req, res) => {
 
 app.post('/decryptpassword', (req, res) => {
   res.send(decrypt(req.body));
-
 })
 
 app.listen(PORT, () => {
