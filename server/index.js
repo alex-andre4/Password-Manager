@@ -48,6 +48,17 @@ app.post('/decryptpassword', (req, res) => {
   res.send(decrypt(req.body));
 })
 
+app.post('/deletepassword', (req, res) => {
+  const { id } = req.body;
+  db.query('DELETE FROM passwords WHERE id = ?', [id], (err, result) => {
+    if (err) {
+      console.error(err);
+    } else {
+      res.send('Password deleted successfully');
+    }
+  });
+});
+
 app.listen(PORT, () => {
   console.log("Server is running");
 });
