@@ -1,153 +1,179 @@
 import './App.css';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Axios from 'axios';
 import React from 'react';
 
 function App() {
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [passwords, setPasswords] = useState([]);
+  const [newPassword, setNewPassword] = useState('');
   const [title, setTitle] = useState('');
-  const [passwordList, setPasswordList] = useState([]);
-  const [searchTerm, setSearchTerm] = useState(''); // Track the search input
-  const [copiedId, setCopiedId] = useState(null); // Track which password was copied
-  const [revealedPasswords, setRevealedPasswords] = useState({}); // Track revealed passwords
+  const [searchTerm, setSearchTerm] = useState('');
+  const [revealedPasswords, setRevealedPasswords] = useState({});
+  const [copiedPasswordId, setCopiedPasswordId] = useState(null);
 
-  useEffect(() => {
-    Axios.get('http://localhost:3001/getpasswords').then((response) => {
-      setPasswordList(response.data);
+  const login = () => {
+    Axios.post('http://localhost:3001/login', {
+      username: username,
+      password: password,
+    }).then((response) => {
+      if (response.data.message === "Login successful") {
+        setIsLoggedIn(true);
+        fetchPasswords(); // Fetch passwords after login
+      }
+    }).catch((error) => {
+      alert(error.response.data.message); // Show alert only for incorrect login
     });
-  }, []);
+  };
+
+  const fetchPasswords = () => {
+    Axios.get('http://localhost:3001/getpasswords')
+      .then((response) => {
+        setPasswords(response.data); // Update the state with the new password list
+      })
+      .catch((error) => {
+        console.error('Error fetching passwords:', error);
+      });
+  };
 
   const addPassword = () => {
     Axios.post('http://localhost:3001/addpassword', {
-      password: password,
+      password: newPassword,
       title: title,
-    }).then(() => {
-      window.location.reload(); // Reload to fetch updated passwords
-    });
+    })
+      .then(() => {
+        setNewPassword(''); // Clear the input field
+        setTitle(''); // Clear the title field
+        fetchPasswords(); // Refresh the password list
+      })
+      .catch((error) => {
+        console.error('Error adding password:', error);
+      });
   };
 
   const deletePassword = (id) => {
-    if (window.confirm('Are you sure you want to delete this password?')) {
-      Axios.post('http://localhost:3001/deletepassword', { id }).then(() => {
-        setPasswordList(passwordList.filter((val) => val.id !== id));
-      });
-    }
+    Axios.post('http://localhost:3001/deletepassword', { id }).then(() => {
+      fetchPasswords(); // Refresh the password list
+    });
   };
 
-  const decryptPassword = (encryption) => {
-    if (revealedPasswords[encryption.id]) {
-      setRevealedPasswords((prev) => ({ ...prev, [encryption.id]: false }));
-    } else {
+  const toggleRevealPassword = (id) => {
+    const passwordToDecrypt = passwords.find((p) => p.id === id);
+
+    if (!revealedPasswords[id]) {
       Axios.post('http://localhost:3001/decryptpassword', {
-        password: encryption.password,
-        iv: encryption.iv,
-      }).then((response) => {
-        setPasswordList(
-          passwordList.map((val) => {
-            return val.id === encryption.id
-              ? {
-                  ...val,
-                  decryptedPassword: response.data,
-                }
-              : val;
-          })
-        );
-        setRevealedPasswords((prev) => ({ ...prev, [encryption.id]: true }));
-      });
-    }
-  };
-
-  const copyToClipboard = (id) => {
-    const passwordEntry = passwordList.find((val) => val.id === id);
-
-    if (passwordEntry) {
-      if (passwordEntry.decryptedPassword) {
-        navigator.clipboard.writeText(passwordEntry.decryptedPassword);
-        setCopiedId(id);
-        setTimeout(() => setCopiedId(null), 2000);
-      } else {
-        Axios.post('http://localhost:3001/decryptpassword', {
-          password: passwordEntry.password,
-          iv: passwordEntry.iv,
-        }).then((response) => {
-          navigator.clipboard.writeText(response.data);
-          setCopiedId(id);
-          setTimeout(() => setCopiedId(null), 2000);
+        password: passwordToDecrypt.password,
+        iv: passwordToDecrypt.iv,
+      })
+        .then((response) => {
+          setRevealedPasswords((prev) => ({
+            ...prev,
+            [id]: response.data,
+          }));
+        })
+        .catch((error) => {
+          console.error('Error decrypting password:', error);
         });
-      }
+    } else {
+      setRevealedPasswords((prev) => ({
+        ...prev,
+        [id]: null,
+      }));
     }
   };
+
+  const copyToClipboard = (password, id) => {
+    navigator.clipboard.writeText(password);
+    setCopiedPasswordId(id); // Show the "Copied!" bubble
+    setTimeout(() => setCopiedPasswordId(null), 2000); // Hide the bubble after 2 seconds
+  };
+
+  const filteredPasswords = passwords.filter((password) =>
+    password.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (!isLoggedIn) {
+    return (
+      <div className="App">
+        <div className="LoginContainer">
+          <h1>Login</h1>
+          <input
+            type="text"
+            placeholder="Username"
+            className="LoginInput"
+            onChange={(event) => setUsername(event.target.value)}
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            className="LoginInput"
+            onChange={(event) => setPassword(event.target.value)}
+          />
+          <button className="LoginButton" onClick={login}>Login</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="App">
-      <h1>Password Manager</h1>
+      <h1>Welcome to the Password Manager</h1>
       <div className="AddPassword">
         <input
           type="text"
-          placeholder="Ex. password123"
-          onChange={(event) => {
-            setPassword(event.target.value);
-          }}
+          placeholder="Website Name"
+          onChange={(event) => setTitle(event.target.value)}
         />
         <input
-          type="text"
-          placeholder="Ex. Facebook"
-          onChange={(event) => {
-            setTitle(event.target.value);
-          }}
+          type="password"
+          placeholder="Password"
+          onChange={(event) => setNewPassword(event.target.value)}
         />
         <button onClick={addPassword}>Add Password</button>
       </div>
-
-      {/* Search Bar */}
       <div className="SearchBar">
         <input
           type="text"
-          placeholder="Search by title..."
-          onChange={(event) => setSearchTerm(event.target.value.toLowerCase())}
+          placeholder="Search passwords..."
+          onChange={(event) => setSearchTerm(event.target.value)}
         />
       </div>
-
       <div className="Passwords">
-        {passwordList
-          .filter((val) => val.title.toLowerCase().includes(searchTerm)) // Filter passwords by search term
-          .map((val, key) => {
-            return (
-              <div className="password" key={key}>
-                <span>{val.title}</span>
-                <span className="password-text">
-                  {revealedPasswords[val.id] ? val.decryptedPassword || '******' : '******'}
-                </span>
-                {copiedId === val.id && <div className="copied-bubble">Copied!</div>}
-                <div className="button-group">
-                  <button
-                    className="trash-button"
-                    onClick={() => deletePassword(val.id)}
-                  >
-                    🗑️
-                  </button>
-                  <button
-                    className="copy-button"
-                    onClick={() => copyToClipboard(val.id)}
-                  >
-                    Copy
-                  </button>
-                  <button
-                    className="reveal-button"
-                    onClick={() =>
-                      decryptPassword({
-                        password: val.password,
-                        iv: val.iv,
-                        id: val.id,
-                      })
-                    }
-                  >
-                    {revealedPasswords[val.id] ? 'Hide' : 'Reveal'}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+        {filteredPasswords.map((password, index) => (
+          <div key={index} className="password">
+            <span>{password.title}</span>
+            <span>
+              {revealedPasswords[password.id]
+                ? revealedPasswords[password.id]
+                : '••••••••'}
+            </span>
+            <div className="button-group">
+              <button
+                className="reveal-button"
+                onClick={() => toggleRevealPassword(password.id)}
+              >
+                {revealedPasswords[password.id] ? 'Hide' : 'Reveal'}
+              </button>
+              <button
+                className="copy-button"
+                onClick={() => copyToClipboard(revealedPasswords[password.id] || password.password, password.id)}
+              >
+                Copy
+              </button>
+              <button
+                className="trash-button"
+                onClick={() => deletePassword(password.id)}
+              >
+                Delete
+              </button>
+              {copiedPasswordId === password.id && (
+                <div className="copied-bubble">Copied!</div>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

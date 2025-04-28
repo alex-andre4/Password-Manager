@@ -45,8 +45,16 @@ app.get('/getpasswords', (req, res) => {
 });
 
 app.post('/decryptpassword', (req, res) => {
-  res.send(decrypt(req.body));
-})
+  const { password, iv } = req.body;
+
+  try {
+    const decryptedPassword = decrypt({ password, iv });
+    res.send(decryptedPassword);
+  } catch (error) {
+    console.error('Error decrypting password:', error);
+    res.status(500).send('Failed to decrypt password');
+  }
+});
 
 app.post('/deletepassword', (req, res) => {
   const { id } = req.body;
@@ -57,6 +65,36 @@ app.post('/deletepassword', (req, res) => {
       res.send('Password deleted successfully');
     }
   });
+});
+
+// Login endpoint
+app.post('/login', (req, res) => {
+  const { username, password } = req.body;
+
+  db.query(
+    "SELECT * FROM users WHERE user = ?",
+    [username],
+    (err, results) => {
+      if (err) {
+        console.error(err);
+        res.status(500).send("Server error");
+      } else if (results.length === 0) {
+        res.status(401).send({ message: "Invalid username or password" });
+      } else {
+        const user = results[0];
+        const decryptedPassword = decrypt({
+          password: user.password,
+          iv: user.iv,
+        });
+
+        if (decryptedPassword === password) {
+          res.send({ message: "Login successful", userId: user.idusers });
+        } else {
+          res.status(401).send({ message: "Invalid username or password" });
+        }
+      }
+    }
+  );
 });
 
 app.listen(PORT, () => {
