@@ -96,7 +96,9 @@ Password-Manager/
 
     Deploy to a public server
 
-🙌 Contributing
+### 🎥 Demo Video
+
+[![Watch the demo](https://img.youtube.com/vi/MJzk3ea2JlM/0.jpg)](https://youtu.be/MJzk3ea2JlM)
 
 Pull requests are welcome! Feel free to open an issue or submit improvements and new features.
 📜 License
