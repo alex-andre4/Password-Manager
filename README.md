@@ -100,7 +100,8 @@ Password-Manager/
 
 [![Watch the demo](https://img.youtube.com/vi/MJzk3ea2JlM/0.jpg)](https://youtu.be/MJzk3ea2JlM)
 
+🙌 Contributing  
 Pull requests are welcome! Feel free to open an issue or submit improvements and new features.
-📜 License
 
+📜 License  
 This project is open source under the MIT License.
